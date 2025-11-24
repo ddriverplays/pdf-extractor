@@ -8,6 +8,9 @@ import sys # Used for exiting the script
 import concurrent.futures # Used for multithreaded processing
 import argparse # NEW: For command-line arguments
 import contextlib # NEW: For suppressing warnings
+import csv # For CSV report generation
+import re # For word tokenization
+from collections import defaultdict # For word occurrence tracking
 
 # --- Configuration Defaults (used if not overridden by CLI) ---
 DEFAULT_TESSERACT_PATH = '/usr/bin/tesseract' 
@@ -119,6 +122,103 @@ def get_last_processed_page(output_dir: pathlib.Path) -> int:
         return 0
     
     return max(processed_pages)
+
+def generate_word_count_csv(output_dir: pathlib.Path, start_page: int, end_page: int):
+    """
+    Generates a comprehensive CSV report with word count statistics:
+    1. Total document word count
+    2. Per-page word counts
+    3. Word occurrence tracking with page numbers
+    """
+    txt_dir = output_dir / "text_files"
+    csv_file = output_dir / "word_count_report.csv"
+    
+    print(f"\n--- Generating Word Count CSV Report ---")
+    
+    # Data structures for tracking
+    total_words = 0
+    page_word_counts = {}  # {page_num: word_count}
+    word_occurrences = defaultdict(lambda: {'count': 0, 'pages': set()})  # {word: {'count': int, 'pages': set}}
+    
+    # Process each text file
+    for page_index in range(start_page, end_page + 1):
+        filename = f"{page_index:04d}.txt"
+        filepath = txt_dir / filename
+        
+        if not filepath.exists():
+            continue
+            
+        try:
+            with open(filepath, 'r', encoding='utf-8') as f:
+                content = f.read()
+                
+                # Skip failed OCR pages
+                if "OCR FAILED" in content:
+                    continue
+                
+                # Extract words using regex (alphanumeric sequences)
+                words = re.findall(r'\b[a-zA-Z0-9]+\b', content.lower())
+                
+                # Filter out very short words (optional, reduces noise)
+                words = [w for w in words if len(w) > 2]
+                
+                # Update page word count
+                page_word_count = len(words)
+                page_word_counts[page_index] = page_word_count
+                total_words += page_word_count
+                
+                # Track individual word occurrences
+                for word in words:
+                    word_occurrences[word]['count'] += 1
+                    word_occurrences[word]['pages'].add(page_index)
+                    
+        except Exception as e:
+            print(f"Warning: Could not process {filepath.name} for word count: {e}")
+            continue
+    
+    if total_words == 0:
+        print("No words found to analyze.")
+        return
+    
+    # Write CSV report
+    try:
+        with open(csv_file, 'w', newline='', encoding='utf-8') as csvfile:
+            writer = csv.writer(csvfile)
+            
+            # Section 1: Document Summary
+            writer.writerow(['=== DOCUMENT SUMMARY ==='])
+            writer.writerow(['Type', 'Value'])
+            writer.writerow(['Total Words', total_words])
+            writer.writerow(['Total Pages Analyzed', len(page_word_counts)])
+            writer.writerow(['Unique Words', len(word_occurrences)])
+            writer.writerow([])  # Blank line
+            
+            # Section 2: Per-Page Word Counts
+            writer.writerow(['=== PER-PAGE WORD COUNTS ==='])
+            writer.writerow(['Page Number', 'Word Count'])
+            for page_num in sorted(page_word_counts.keys()):
+                writer.writerow([page_num, page_word_counts[page_num]])
+            writer.writerow([])  # Blank line
+            
+            # Section 3: Word Occurrence Details (sorted by frequency, descending)
+            writer.writerow(['=== WORD OCCURRENCE DETAILS ==='])
+            writer.writerow(['Word', 'Total Occurrences', 'Pages'])
+            
+            # Sort words by occurrence count (descending)
+            sorted_words = sorted(word_occurrences.items(), key=lambda x: x[1]['count'], reverse=True)
+            
+            for word, data in sorted_words:
+                pages_str = ', '.join(map(str, sorted(data['pages'])))
+                writer.writerow([word, data['count'], pages_str])
+        
+        print(f"Successfully generated word count report: {csv_file.name}")
+        print(f"  - Total words: {total_words:,}")
+        print(f"  - Unique words: {len(word_occurrences):,}")
+        print(f"  - Pages analyzed: {len(page_word_counts)}")
+        
+    except Exception as e:
+        print(f"ERROR generating CSV report: {e}")
+
 
 def combine_text_files(output_dir: pathlib.Path, start_page: int, end_page: int):
     """
@@ -265,6 +365,8 @@ def process_pdf(config: dict):
         # Run the combination step only if there were successful extractions
         if success_count > 0:
             combine_text_files(output_dir, start_page, end_page)
+            # Generate word count CSV report
+            generate_word_count_csv(output_dir, start_page, end_page)
 
     except Exception as e:
         print(f"\nAn unexpected error occurred during main execution: {e}")
