@@ -102,8 +102,8 @@ If you stopped processing a 100-page document at page 50, rerunning the command 
 python pdf_extractor.py my_long_report.pdf
 
 # Output will prompt:
-# Found existing files. Last successfully processed page was 50 of 100.
-# Enter 'r' to resume at page 51, 'a' for all, 'n' for a new range, or 'q' to quit: r
+Found existing files. Last successfully processed page was 50 of 100.
+Enter 'r' to resume at page 51, 'a' for all, 'n' for a new range, or 'q' to quit: r
 
 
 ### Advanced Arguments
@@ -126,9 +126,9 @@ First, start the script. When prompted, enter the range (n or 1-50):
 
 python pdf_extractor.py thesis.pdf --dpi 600 --lang eng+fra
 
-# (When prompted)
-# Enter 'a' for all pages, 'r' for a new range (e.g., 5-10), or 'q' to quit: n
-# Enter page range (e.g., 5-10): 1-50
+# When prompted
+Enter 'a' for all pages, 'r' for a new range (e.g., 5-10), or 'q' to quit: n
+Enter page range (e.g., 5-10): 1-50
 
 **2. Specify the Tesseract path for a Windows installation:**
 
@@ -136,7 +136,7 @@ python pdf_extractor.py my_doc.pdf --tesseract-path "C:\Program Files\Tesseract-
 
 ---
 
-## Output Structure
+# Output Structure
 
 A new directory named <pdf_name>_processed will be created inside your chosen output directory.
 
