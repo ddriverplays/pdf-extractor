@@ -58,8 +58,8 @@ else
 fi
 
 # --- 4. Install Python Dependencies ---
-echo "Installing Python dependencies (PyMuPDF, pytesseract, Pillow)..."
-pip install PyMuPDF pytesseract Pillow
+echo "Installing Python dependencies from requirements.txt..."
+pip install -r requirements.txt
 
 if [ $? -ne 0 ]; then
     echo "Error installing Python dependencies. Check your internet connection or virtual environment setup."
@@ -72,7 +72,19 @@ fi
 
 echo "✅ All Python dependencies installed successfully."
 
-# --- 5. Final Instructions ---
+# --- 5. Download spaCy Language Model ---
+echo "Downloading spaCy English language model for proper name detection..."
+$PYTHON_CMD -m spacy download en_core_web_sm
+
+if [ $? -ne 0 ]; then
+    echo "⚠️  Warning: Failed to download spaCy language model."
+    echo "   Proper name detection will be disabled."
+    echo "   You can manually install it later with: python -m spacy download en_core_web_sm"
+else
+    echo "✅ spaCy language model installed successfully."
+fi
+
+# --- 6. Final Instructions ---
 echo -e "\n--- Setup Complete ---"
 echo "To run the script, make sure your virtual environment is active, then execute:"
 echo "python pdf_extractor.py <path_to_your_pdf> [options]"

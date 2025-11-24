@@ -11,6 +11,11 @@ import contextlib # NEW: For suppressing warnings
 import csv # For CSV report generation
 import re # For word tokenization
 from collections import defaultdict # For word occurrence tracking
+try:
+    import spacy # For Named Entity Recognition (proper names)
+    SPACY_AVAILABLE = True
+except ImportError:
+    SPACY_AVAILABLE = False
 
 # --- Configuration Defaults (used if not overridden by CLI) ---
 DEFAULT_TESSERACT_PATH = '/usr/bin/tesseract' 
@@ -220,6 +225,93 @@ def generate_word_count_csv(output_dir: pathlib.Path, start_page: int, end_page:
         print(f"ERROR generating CSV report: {e}")
 
 
+def generate_proper_names_csv(output_dir: pathlib.Path, start_page: int, end_page: int):
+    """
+    Generates a CSV report of proper names (PERSON entities) using spaCy NER:
+    - Identifies person names in the extracted text
+    - Tracks occurrences and page numbers
+    - Exports to proper_names_report.csv
+    """
+    if not SPACY_AVAILABLE:
+        print("\n⚠️  spaCy not installed. Skipping proper name detection.")
+        print("   Install with: pip install spacy && python -m spacy download en_core_web_sm")
+        return
+    
+    txt_dir = output_dir / "text_files"
+    csv_file = output_dir / "proper_names_report.csv"
+    
+    print(f"\n--- Generating Proper Names CSV Report ---")
+    
+    # Load spaCy model
+    try:
+        nlp = spacy.load("en_core_web_sm")
+    except OSError:
+        print("⚠️  spaCy English model not found. Skipping proper name detection.")
+        print("   Download with: python -m spacy download en_core_web_sm")
+        return
+    
+    # Data structure for tracking proper names
+    name_occurrences = defaultdict(lambda: {'count': 0, 'pages': set()})  # {name: {'count': int, 'pages': set}}
+    
+    # Process each text file
+    for page_index in range(start_page, end_page + 1):
+        filename = f"{page_index:04d}.txt"
+        filepath = txt_dir / filename
+        
+        if not filepath.exists():
+            continue
+            
+        try:
+            with open(filepath, 'r', encoding='utf-8') as f:
+                content = f.read()
+                
+                # Skip failed OCR pages
+                if "OCR FAILED" in content:
+                    continue
+                
+                # Process text with spaCy NER
+                doc = nlp(content)
+                
+                # Extract PERSON entities
+                for ent in doc.ents:
+                    if ent.label_ == "PERSON":
+                        # Preserve original capitalization
+                        name = ent.text.strip()
+                        if name:  # Ensure name is not empty
+                            name_occurrences[name]['count'] += 1
+                            name_occurrences[name]['pages'].add(page_index)
+                    
+        except Exception as e:
+            print(f"Warning: Could not process {filepath.name} for proper names: {e}")
+            continue
+    
+    if not name_occurrences:
+        print("No proper names found in the document.")
+        return
+    
+    # Write CSV report
+    try:
+        with open(csv_file, 'w', newline='', encoding='utf-8') as csvfile:
+            writer = csv.writer(csvfile)
+            
+            # Header
+            writer.writerow(['Name', 'Total Occurrences', 'Pages'])
+            
+            # Sort names by occurrence count (descending)
+            sorted_names = sorted(name_occurrences.items(), key=lambda x: x[1]['count'], reverse=True)
+            
+            for name, data in sorted_names:
+                pages_str = ', '.join(map(str, sorted(data['pages'])))
+                writer.writerow([name, data['count'], pages_str])
+        
+        print(f"Successfully generated proper names report: {csv_file.name}")
+        print(f"  - Unique names found: {len(name_occurrences):,}")
+        print(f"  - Total name mentions: {sum(d['count'] for d in name_occurrences.values()):,}")
+        
+    except Exception as e:
+        print(f"ERROR generating proper names CSV report: {e}")
+
+
 def combine_text_files(output_dir: pathlib.Path, start_page: int, end_page: int):
     """
     Merges all successfully extracted text files in the range into one master file.
@@ -367,6 +459,8 @@ def process_pdf(config: dict):
             combine_text_files(output_dir, start_page, end_page)
             # Generate word count CSV report
             generate_word_count_csv(output_dir, start_page, end_page)
+            # Generate proper names CSV report
+            generate_proper_names_csv(output_dir, start_page, end_page)
 
     except Exception as e:
         print(f"\nAn unexpected error occurred during main execution: {e}")

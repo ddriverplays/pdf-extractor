@@ -10,11 +10,19 @@ A robust Python script that extracts text from PDF files by converting pages to 
 
 ## Features
 
-* Concurrent Processing: Utilizes multiple CPU cores to process pages simultaneously, significantly reducing extraction time.
-* High Accuracy: Renders PDF pages to high-resolution PNGs (default 300 DPI) for improved OCR results.
-* Resume Capability: Automatically detects partial output and allows the user to resume processing from the last successfully completed page.
-* Command-Line Interface (CLI): Supports easy configuration via command-line arguments.
-* Output Consolidation: Merges all successfully extracted text into a single combined_output.txt file.
+* **Concurrent Processing**: Utilizes multiple CPU cores to process pages simultaneously, significantly reducing extraction time.
+* **High Accuracy**: Renders PDF pages to high-resolution PNGs (default 300 DPI) for improved OCR results.
+* **Resume Capability**: Automatically detects partial output and allows the user to resume processing from the last successfully completed page.
+* **Command-Line Interface (CLI)**: Supports easy configuration via command-line arguments.
+* **Output Consolidation**: Merges all successfully extracted text into a single `combined_output.txt` file.
+* **Word Count Analysis**: Generates comprehensive CSV reports with:
+  - Total document word count
+  - Per-page word counts
+  - Individual word occurrence tracking with page numbers
+* **Proper Name Detection**: Uses AI-powered Named Entity Recognition (NER) to identify and track person names with:
+  - Occurrence counts for each name
+  - Page numbers where each name appears
+  - Exported to CSV for easy analysis
 
 ---
 
@@ -40,7 +48,13 @@ Tesseract is the core OCR engine used by the script.
 
 ### 3. Required Python Libraries
 
-The script relies on PyMuPDF (for PDF rendering) and Pillow/pytesseract (for OCR).
+The script relies on several Python libraries:
+
+* **PyMuPDF** (fitz): For PDF rendering
+* **Pillow/pytesseract**: For OCR processing
+* **spaCy**: For Named Entity Recognition (proper name detection)
+
+All dependencies are listed in `requirements.txt` and will be installed automatically by the setup script.
 
 ---
 
@@ -68,15 +82,32 @@ venv\Scripts\activate
 
 ### C. Install Dependencies
 
-pip install PyMuPDF pytesseract Pillow
+Install all required Python libraries from the requirements file:
 
+```bash
+pip install -r requirements.txt
+```
+
+Then download the spaCy language model for proper name detection:
+
+```bash
+python -m spacy download en_core_web_sm
+```
 
 ### Automated Setup (Recommended)
 
-Run the simple installation script to check for Python dependencies.
+Run the installation script to automatically set up the environment:
 
+```bash
 chmod +x install.sh
 ./install.sh
+```
+
+This script will:
+- Check for Python and Tesseract
+- Create a virtual environment
+- Install all dependencies from `requirements.txt`
+- Download the spaCy language model
 
 
 ---
@@ -138,17 +169,70 @@ python pdf_extractor.py my_doc.pdf --tesseract-path "C:\Program Files\Tesseract-
 
 # Output Structure
 
-A new directory named <pdf_name>_processed will be created inside your chosen output directory.
+A new directory named `<pdf_name>_processed` will be created inside your chosen output directory.
 
+```
 <pdf_name>_processed/
-├── combined_output.txt      # The final merged text document.
+├── combined_output.txt          # The final merged text document
+├── word_count_report.csv        # Word count analysis (NEW)
+├── proper_names_report.csv      # Proper names detected (NEW)
 ├── png_images/
 │   ├── 0001.png
 │   ├── 0002.png
 │   └── ...
 └── text_files/
-    ├── 0001.txt             # Text output for page 1.
-    ├── 0002.txt             # Text output for page 2.
+    ├── 0001.txt                 # Text output for page 1
+    ├── 0002.txt                 # Text output for page 2
     └── ...
+```
 
-> Note: If a page fails OCR, its corresponding .txt file will contain an "OCR FAILED" marker along with the error message. Failed pages are automatically skipped during the consolidation into combined_output.txt.
+> **Note**: If a page fails OCR, its corresponding `.txt` file will contain an "OCR FAILED" marker along with the error message. Failed pages are automatically skipped during consolidation.
+
+---
+
+## CSV Reports
+
+The extractor automatically generates two CSV reports for analysis:
+
+### 1. Word Count Report (`word_count_report.csv`)
+
+Provides comprehensive word statistics:
+
+**Document Summary Section:**
+- Total word count across all pages
+- Number of pages analyzed
+- Count of unique words
+
+**Per-Page Word Counts:**
+- Individual word count for each page
+
+**Word Occurrence Details:**
+- Every unique word (3+ characters)
+- Total occurrences
+- All page numbers where it appears
+
+**Example:**
+```csv
+Word,Total Occurrences,Pages
+dog,75,"3, 36, 73, 89, 102"
+cat,42,"5, 12, 89"
+```
+
+### 2. Proper Names Report (`proper_names_report.csv`)
+
+Identifies person names using AI-powered Named Entity Recognition:
+
+**Contents:**
+- Person names detected in the document
+- Total occurrences for each name
+- All page numbers where the name appears
+- Sorted by frequency (most common first)
+
+**Example:**
+```csv
+Name,Total Occurrences,Pages
+John Smith,92,"254, 340, 533, 678"
+Jane Doe,45,"12, 89, 234, 456"
+```
+
+> **Note**: Proper name detection requires spaCy and the English language model. If not installed, this feature will be skipped with a warning message.
