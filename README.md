@@ -1,10 +1,10 @@
-### Concurrent PDF OCR Extractor
+# Concurrent PDF OCR Extractor
 
 ## This powerful tool is essential for writers, researchers, journalists, and the OSINT (Open-Source Intelligence) community who need to quickly and accurately extract actionable text from large volumes of scanned or image-based PDF documents. By leveraging concurrent processing and high-DPI rendering, it transforms unsearchable PDFs into usable, indexed text for analysis and citation.
 
 ---
 
-# A robust Python script that extracts text from PDF files by converting pages to high-DPI images and performing Optical Character Recognition (OCR) using Tesseract. This tool uses concurrent processing for speed and supports resuming interrupted jobs.
+### A robust Python script that extracts text from PDF files by converting pages to high-DPI images and performing Optical Character Recognition (OCR) using Tesseract. This tool uses concurrent processing for speed and supports resuming interrupted jobs.
 
 ---
 
